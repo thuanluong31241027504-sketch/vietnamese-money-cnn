@@ -89,21 +89,30 @@ input_info = session.get_inputs()[0]
 input_shape = input_info.shape
 target_size = (input_shape[1], input_shape[2])
 
-# THU TU CLASS DUNG TU DATASET
-CLASS_NAMES = ['10.000', '20.000', '50.000', '100.000', '200.000', '500.000']
+# THU TU CLASS DUNG TU CODE TRAIN (alphabet)
+CLASS_NAMES = ['010000', '020000', '050000', '100000', '200000', '500000']
 
-# Thong tin chi tiet
+# Hien thi dep
+DISPLAY_NAMES = {
+    '010000': '10.000 dong',
+    '020000': '20.000 dong',
+    '050000': '50.000 dong',
+    '100000': '100.000 dong',
+    '200000': '200.000 dong',
+    '500000': '500.000 dong'
+}
+
 MONEY_INFO = {
-    '10.000': {'value': '10.000 dong', 'color': 'Nau do', 'feature': 'Hinh anh chu tich Ho Chi Minh, gieng Co Loa'},
-    '20.000': {'value': '20.000 dong', 'color': 'Xanh duong', 'feature': 'Hinh anh chu tich Ho Chi Minh, cau The Huc'},
-    '50.000': {'value': '50.000 dong', 'color': 'Hong tim', 'feature': 'Hinh anh chu tich Ho Chi Minh, Hue'},
-    '100.000': {'value': '100.000 dong', 'color': 'Xanh la', 'feature': 'Hinh anh chu tich Ho Chi Minh, Van Mieu'},
-    '200.000': {'value': '200.000 dong', 'color': 'Do nau', 'feature': 'Hinh anh chu tich Ho Chi Minh, Ha Long'},
-    '500.000': {'value': '500.000 dong', 'color': 'Xanh tim', 'feature': 'Hinh anh chu tich Ho Chi Minh, nha tho Kim Lien'}
+    '010000': {'value': '10.000 dong', 'color': 'Nau do', 'feature': 'Hinh anh chu tich Ho Chi Minh, gieng Co Loa'},
+    '020000': {'value': '20.000 dong', 'color': 'Xanh duong', 'feature': 'Hinh anh chu tich Ho Chi Minh, cau The Huc'},
+    '050000': {'value': '50.000 dong', 'color': 'Hong tim', 'feature': 'Hinh anh chu tich Ho Chi Minh, Hue'},
+    '100000': {'value': '100.000 dong', 'color': 'Xanh la', 'feature': 'Hinh anh chu tich Ho Chi Minh, Van Mieu'},
+    '200000': {'value': '200.000 dong', 'color': 'Do nau', 'feature': 'Hinh anh chu tich Ho Chi Minh, Ha Long'},
+    '500000': {'value': '500.000 dong', 'color': 'Xanh tim', 'feature': 'Hinh anh chu tich Ho Chi Minh, nha tho Kim Lien'}
 }
 
 st.markdown("""
-> nhan dien cac menh gia tien Viet Nam
+> nhan dien menh gia tien Viet Nam
 > buoc 1: chup anh to tien
 > buoc 2: nhan nut predict
 > buoc 3: xem ket qua
@@ -146,8 +155,8 @@ if uploaded:
         top5_idx = np.argsort(predictions)[-5:][::-1]
         for i, idx in enumerate(top5_idx, 1):
             prob = float(predictions[idx])
-            value = CLASS_NAMES[idx]
-            st.progress(prob, text=f"{i}. {value} dong - {prob:.2%}")
+            value = DISPLAY_NAMES[CLASS_NAMES[idx]]
+            st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
 
 st.markdown("---")
 st.caption("> version 1.0 | vietnam money recognition cnn")
