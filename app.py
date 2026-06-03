@@ -1,11 +1,9 @@
 import streamlit as st
 import numpy as np
-from PIL import Image, ImageEnhance
+from PIL import Image
 import onnxruntime as ort
 import io
 import os
-import cv2
-from io import BytesIO
 
 st.set_page_config(
     page_title="Money Recognition",
@@ -18,16 +16,89 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
-    .stApp {background-color: #ffffff;}
-    * {font-family: 'Courier New', 'SF Mono', monospace;}
-    @keyframes blink {0%,50%{opacity:1}51%,100%{opacity:0}}
-    .blinking-cursor {animation: blink 1s step-end infinite; display: inline-block; width: 10px;}
-    .main-title {color: #ff69b4; font-size: 2rem; margin-bottom: 1rem; font-weight: normal;}
-    .stButton > button {background: transparent; color: #ff69b4 !important; border: 1px solid #ff69b4 !important; border-radius: 0px !important; width: 100% !important;}
-    .stButton > button:hover {background: #ff69b420 !important;}
-    .stProgress > div > div > div {background-color: #ff69b4;}
-    .stCaption {color: #ff69b4;}
-    hr {border-color: #ff69b450;}
+    
+    .stApp {
+        background-color: #fffbe6;
+    }
+    
+    * {
+        font-family: 'Courier New', 'SF Mono', monospace;
+    }
+    
+    @keyframes blink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0; }
+    }
+    
+    .blinking-cursor {
+        animation: blink 1s step-end infinite;
+        display: inline-block;
+        width: 10px;
+    }
+    
+    .main-title {
+        color: #8B4513;
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        font-weight: normal;
+        text-align: center;
+    }
+    
+    .stButton > button {
+        background: #8B4513 !important;
+        color: #fffbe6 !important;
+        border: 1px solid #8B4513 !important;
+        border-radius: 0px !important;
+        font-family: 'Courier New', monospace !important;
+        width: 100% !important;
+    }
+    
+    .stButton > button:hover {
+        background: #A0522D !important;
+        color: #ffffff !important;
+    }
+    
+    .stProgress > div > div > div {
+        background-color: #8B4513;
+    }
+    
+    .stCaption {
+        color: #8B4513;
+    }
+    
+    hr {
+        border-color: #8B4513;
+        opacity: 0.3;
+    }
+    
+    .money-card {
+        border: 1px solid #8B4513;
+        padding: 12px;
+        margin-bottom: 10px;
+        background-color: #fff8e7;
+        border-radius: 0px;
+    }
+    
+    .money-title {
+        color: #8B4513;
+        font-size: 1rem;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    
+    .money-desc {
+        color: #333333;
+        font-size: 0.7rem;
+        line-height: 1.5;
+    }
+    
+    .result-box {
+        border: 2px solid #8B4513;
+        padding: 20px;
+        margin-top: 20px;
+        background-color: #fff8e7;
+        text-align: center;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -53,85 +124,132 @@ target_size = (input_shape[1], input_shape[2])
 
 CLASS_NAMES = ['010000', '020000', '050000', '100000', '200000', '500000']
 
-DISPLAY_NAMES = {
-    '010000': '10.000 dong',
-    '020000': '20.000 dong',
-    '050000': '50.000 dong',
-    '100000': '100.000 dong',
-    '200000': '200.000 dong',
-    '500000': '500.000 dong'
+# THONG TIN CHI TIET VE CAC MENH GIA
+MONEY_INFO = {
+    '010000': {
+        'value': '10.000 dong',
+        'color': 'Nau do',
+        'size': '132 x 60 mm',
+        'material': 'Polymer',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, gieng Co Loa',
+        'release': '2006'
+    },
+    '020000': {
+        'value': '20.000 dong',
+        'color': 'Xanh duong',
+        'size': '136 x 65 mm',
+        'material': 'Polymer',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, cau The Huc',
+        'release': '2006'
+    },
+    '050000': {
+        'value': '50.000 dong',
+        'color': 'Hong tim',
+        'size': '140 x 65 mm',
+        'material': 'Polymer',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, Hue',
+        'release': '2003'
+    },
+    '100000': {
+        'value': '100.000 dong',
+        'color': 'Xanh la',
+        'size': '144 x 65 mm',
+        'material': 'Polymer',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, Van Mieu',
+        'release': '2004'
+    },
+    '200000': {
+        'value': '200.000 dong',
+        'color': 'Do nau',
+        'size': '148 x 65 mm',
+        'material': 'Polymer',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, Ha Long',
+        'release': '2006'
+    },
+    '500000': {
+        'value': '500.000 dong',
+        'color': 'Xanh tim',
+        'size': '152 x 65 mm',
+        'material': 'Polymer',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, nha tho Kim Lien',
+        'release': '2003'
+    }
 }
 
 def preprocess_image(img):
-    """Xu ly anh giong 100% khi train"""
-    # Chuyen sang RGB
     if img.mode == 'RGBA':
         img = img.convert('RGB')
     
-    # Tang do tuong phan (giong augmentation khi train)
-    enhancer = ImageEnhance.Contrast(img)
-    img = enhancer.enhance(1.5)
-    
-    # Tang do sac net
-    enhancer = ImageEnhance.Sharpness(img)
-    img = enhancer.enhance(1.3)
-    
-    # Resize ve dung kich thuoc
     img = img.resize(target_size)
-    
-    # Chuyen sang array va normalize
     img_array = np.array(img).astype(np.float32) / 255.0
-    
-    # Them batch dimension
     img_array = np.expand_dims(img_array, axis=0)
     
     return img_array
 
-st.markdown("""
-> huong dan nhan dien tien Viet Nam
-> 1. chup anh to tien (de trong khung hinh)
-> 2. nhan nut predict
-> 3. xem ket qua
-""")
+# LAYOUT 2 COT
+col_left, col_right = st.columns([0.5, 0.5])
 
-camera_image = st.camera_input("", label_visibility="collapsed")
+with col_left:
+    st.markdown("### > camera")
+    camera_image = st.camera_input("", label_visibility="collapsed")
+    
+    if camera_image is not None:
+        bytes_data = camera_image.getvalue()
+        img = Image.open(io.BytesIO(bytes_data))
+        st.image(img, width=250, caption="anh da chup")
+        
+        if st.button("> nhan dien"):
+            img_array = preprocess_image(img)
+            
+            input_name = input_info.name
+            predictions = session.run(None, {input_name: img_array})[0][0]
+            
+            idx = np.argmax(predictions)
+            confidence = float(predictions[idx])
+            money_key = CLASS_NAMES[idx]
+            money = MONEY_INFO[money_key]
+            
+            st.markdown("""
+            <div class="result-box">
+                <h3 style="color:#8B4513; margin-bottom:10px;">KET QUA</h3>
+                <h2 style="color:#8B4513; font-size:1.5rem;">{}</h2>
+                <p style="color:#666;">do tin cay: {:.2%}</p>
+            </div>
+            """.format(money['value'], confidence), unsafe_allow_html=True)
+            
+            st.markdown("---")
+            st.markdown("> chi tiet menh gia")
+            st.write(f"**menh gia:** {money['value']}")
+            st.write(f"**mau sac:** {money['color']}")
+            st.write(f"**kich thuoc:** {money['size']}")
+            st.write(f"**chat lieu:** {money['material']}")
+            st.write(f"**dac diem:** {money['feature']}")
+            st.write(f"**nam phat hanh:** {money['release']}")
+            
+            st.markdown("---")
+            st.markdown("> top 3 du doan")
+            top3_idx = np.argsort(predictions)[-3:][::-1]
+            for i, idx in enumerate(top3_idx, 1):
+                prob = float(predictions[idx])
+                value = MONEY_INFO[CLASS_NAMES[idx]]['value']
+                st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
 
-if camera_image is not None:
-    bytes_data = camera_image.getvalue()
-    img = Image.open(io.BytesIO(bytes_data))
+with col_right:
+    st.markdown("### > thu vien tien")
+    st.caption("cac menh gia tien Viet Nam")
     
-    # Hien thi anh goc
-    st.image(img, width=250, caption="Anh da chup")
-    
-    if st.button("> predict"):
-        # Xu ly anh giong 100% train
-        img_array = preprocess_image(img)
-        
-        # Du doan
-        input_name = input_info.name
-        predictions = session.run(None, {input_name: img_array})[0][0]
-        
-        idx = np.argmax(predictions)
-        confidence = float(predictions[idx])
-        money_key = CLASS_NAMES[idx]
-        
-        st.markdown("---")
-        st.markdown(f"### > {DISPLAY_NAMES[money_key]}")
-        
-        if confidence > 0.7:
-            st.success(f"do tin cay: {confidence:.2%}")
-        elif confidence > 0.5:
-            st.warning(f"do tin cay: {confidence:.2%}")
-        else:
-            st.error(f"do tin cay thap: {confidence:.2%}")
-        
-        st.markdown("---")
-        st.markdown("> top 3 du doan")
-        top3_idx = np.argsort(predictions)[-3:][::-1]
-        for i, idx in enumerate(top3_idx, 1):
-            prob = float(predictions[idx])
-            value = DISPLAY_NAMES[CLASS_NAMES[idx]]
-            st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
+    for money_key, money in MONEY_INFO.items():
+        with st.expander(f"> {money['value']}"):
+            st.markdown(f"""
+            <div class="money-card">
+                <div class="money-title">{money['value']}</div>
+                <div class="money-desc"><b>mau sac:</b> {money['color']}</div>
+                <div class="money-desc"><b>kich thuoc:</b> {money['size']}</div>
+                <div class="money-desc"><b>chat lieu:</b> {money['material']}</div>
+                <div class="money-desc"><b>dac diem:</b> {money['feature']}</div>
+                <div class="money-desc"><b>nam phat hanh:</b> {money['release']}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 st.markdown("---")
 st.caption("> version 1.0 | vietnam money recognition cnn")
