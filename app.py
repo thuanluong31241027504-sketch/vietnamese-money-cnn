@@ -1,9 +1,10 @@
 import streamlit as st
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance
 import onnxruntime as ort
 import io
 import os
+import cv2
 
 st.set_page_config(
     page_title="Money Recognition",
@@ -28,7 +29,7 @@ st.markdown("""
     .result-box {border: 2px solid #8B4513; padding: 20px; margin-top: 20px; background-color: #fff8e7; text-align: center;}
     .money-card {border: 1px solid #8B4513; padding: 12px; margin-bottom: 10px; background-color: #fff8e7;}
     .money-title {color: #8B4513; font-size: 1rem; font-weight: bold;}
-    .money-desc {color: #333; font-size: 0.7rem;}
+    .money-desc {color: #333; font-size: 0.7rem; line-height: 1.5;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -56,15 +57,38 @@ CLASS_NAMES = ['010000', '020000', '050000', '100000', '200000', '500000']
 DISPLAY_NAMES = ['10.000 dong', '20.000 dong', '50.000 dong', '100.000 dong', '200.000 dong', '500.000 dong']
 
 MONEY_INFO = {
-    '010000': {'value': '10.000 dong', 'color': 'Nau do', 'feature': 'Gieng Co Loa'},
-    '020000': {'value': '20.000 dong', 'color': 'Xanh duong', 'feature': 'Cau The Huc'},
-    '050000': {'value': '50.000 dong', 'color': 'Hong tim', 'feature': 'Hue'},
-    '100000': {'value': '100.000 dong', 'color': 'Xanh la', 'feature': 'Van Mieu'},
-    '200000': {'value': '200.000 dong', 'color': 'Do nau', 'feature': 'Ha Long'},
-    '500000': {'value': '500.000 dong', 'color': 'Xanh tim', 'feature': 'Nha tho Kim Lien'}
+    '10.000 dong': {'color': 'Nau do', 'feature': 'Gieng Co Loa', 'release': '2006'},
+    '20.000 dong': {'color': 'Xanh duong', 'feature': 'Cau The Huc', 'release': '2006'},
+    '50.000 dong': {'color': 'Hong tim', 'feature': 'Hue', 'release': '2003'},
+    '100.000 dong': {'color': 'Xanh la', 'feature': 'Van Mieu', 'release': '2004'},
+    '200.000 dong': {'color': 'Do nau', 'feature': 'Ha Long', 'release': '2006'},
+    '500.000 dong': {'color': 'Xanh tim', 'feature': 'Nha tho Kim Lien', 'release': '2003'}
 }
 
-# Layout 2 cot
+def preprocess_image(img):
+    """Xu ly anh toi uu cho ONNX"""
+    # Chuyen sang RGB
+    if img.mode == 'RGBA':
+        img = img.convert('RGB')
+    
+    # Can bang sang
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(1.3)
+    
+    # Resize chuan xac
+    img = img.resize(target_size, Image.LANCZOS)
+    
+    # Chuyen sang array
+    img_array = np.array(img).astype(np.float32)
+    
+    # Normalize ve [0,1]
+    img_array = img_array / 255.0
+    
+    # Them batch dimension
+    img_array = np.expand_dims(img_array, axis=0)
+    
+    return img_array
+
 col_left, col_right = st.columns([0.5, 0.5])
 
 with col_left:
@@ -76,55 +100,56 @@ with col_left:
         img = Image.open(io.BytesIO(bytes_data))
         st.image(img, width=250, caption="anh da chup")
         
-        if st.button("> nhan dien"):
+        if st.button("> nhan dien", type="primary"):
             # Xu ly anh
-            if img.mode == 'RGBA':
-                img = img.convert('RGB')
-            img = img.resize(target_size)
-            img_array = np.array(img).astype(np.float32) / 255.0
-            img_array = np.expand_dims(img_array, axis=0)
+            img_array = preprocess_image(img)
             
             # Du doan
             input_name = input_info.name
             predictions = session.run(None, {input_name: img_array})[0][0]
             
+            # Hien thi xac suat tung class
+            st.markdown("---")
+            st.markdown("> xac suat")
+            for i, name in enumerate(DISPLAY_NAMES):
+                prob = float(predictions[i])
+                st.progress(prob, text=f"{name}: {prob:.2%}")
+            
+            # Ket qua
             idx = np.argmax(predictions)
             confidence = float(predictions[idx])
-            money_key = CLASS_NAMES[idx]
-            money = MONEY_INFO[money_key]
+            money_name = DISPLAY_NAMES[idx]
+            money = MONEY_INFO[money_name]
             
-            st.markdown(f"""
-            <div class="result-box">
-                <h2 style="color:#8B4513;">{money['value']}</h2>
-                <p>do tin cay: {confidence:.2%}</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("---")
-            st.markdown("> chi tiet")
-            st.write(f"**mau sac:** {money['color']}")
-            st.write(f"**dac diem:** {money['feature']}")
-            
-            st.markdown("---")
-            st.markdown("> top 3")
-            top3_idx = np.argsort(predictions)[-3:][::-1]
-            for i, idx in enumerate(top3_idx, 1):
-                prob = float(predictions[idx])
-                value = DISPLAY_NAMES[idx]
-                st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
+            if confidence > 0.7:
+                st.markdown(f"""
+                <div class="result-box">
+                    <h2 style="color:#8B4513;">{money_name}</h2>
+                    <p>do tin cay: {confidence:.2%}</p>
+                    <p>mau sac: {money['color']}</p>
+                    <p>dac diem: {money['feature']}</p>
+                    <p>nam phat hanh: {money['release']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+            elif confidence > 0.5:
+                st.warning(f"⚠️ Co the la {money_name} (do tin cay: {confidence:.2%})")
+            else:
+                st.error(f"❌ Khong xac dinh duoc (do tin cay: {confidence:.2%})")
+                st.info("Vui long chup lai anh ro hon, du anh sang")
 
 with col_right:
-    st.markdown("### > danh sach tien")
+    st.markdown("### > thu vien tien")
     
-    for money_key, money in MONEY_INFO.items():
-        with st.expander(f"> {money['value']}"):
+    for name, money in MONEY_INFO.items():
+        with st.expander(f"> {name}"):
             st.markdown(f"""
             <div class="money-card">
-                <div class="money-title">{money['value']}</div>
+                <div class="money-title">{name}</div>
                 <div class="money-desc"><b>mau sac:</b> {money['color']}</div>
                 <div class="money-desc"><b>dac diem:</b> {money['feature']}</div>
+                <div class="money-desc"><b>nam phat hanh:</b> {money['release']}</div>
             </div>
             """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("> version 1.0 | vietnam money recognition")
+st.caption("> version 2.0 | vietnam money recognition cnn | toi uu cho onnx")
