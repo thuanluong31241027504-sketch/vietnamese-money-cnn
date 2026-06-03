@@ -22,11 +22,10 @@ st.markdown("""
     .blinking-cursor {animation: blink 1s step-end infinite; display: inline-block; width: 10px;}
     .main-title {
         color: #8B4513;
-        font-size: 3.5rem;
+        font-size: 2.2rem;
         font-weight: bold;
         margin-bottom: 1rem;
         text-align: center;
-        letter-spacing: 2px;
     }
     .stButton > button {
         background: #8B4513 !important;
@@ -34,8 +33,7 @@ st.markdown("""
         border: none !important;
         border-radius: 0px !important;
         width: 100% !important;
-        padding: 0.75rem !important;
-        font-size: 1.1rem !important;
+        padding: 0.6rem !important;
     }
     .stButton > button:hover {
         background: #A0522D !important;
@@ -46,47 +44,39 @@ st.markdown("""
     hr {
         border-color: #8B4513;
         opacity: 0.3;
-        margin: 20px 0;
     }
     .result-box {
         border: 2px solid #8B4513;
-        padding: 20px;
-        margin-top: 20px;
+        padding: 15px;
+        margin-top: 15px;
         background-color: #fff8e7;
         text-align: center;
     }
     .result-box h2 {
         color: #8B4513;
-        font-size: 1.8rem;
+        font-size: 1.5rem;
         margin: 0;
     }
     .money-card {
         border: 1px solid #8B4513;
-        padding: 12px;
-        margin-bottom: 10px;
+        padding: 10px;
+        margin-bottom: 8px;
         background-color: #fff8e7;
     }
-    .money-card .money-title {
+    .money-title {
         color: #8B4513;
-        font-size: 1rem;
+        font-size: 0.9rem;
         font-weight: bold;
-        margin-bottom: 5px;
     }
-    .money-card .money-desc {
+    .money-desc {
         color: #333;
-        font-size: 0.7rem;
-        line-height: 1.5;
-    }
-    .section-title {
-        color: #8B4513;
-        font-size: 1.2rem;
-        font-weight: bold;
-        margin-bottom: 15px;
+        font-size: 0.65rem;
+        line-height: 1.4;
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="main-title">VIETNAMESE MONEY RECOGNITION<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">vietnamese money recognition<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
 
 MODEL_FILE = "vietnamese_money.onnx"
 
@@ -113,71 +103,65 @@ MONEY_INFO = {
     '10.000 dong': {
         'color': 'Vang sam tren nen xanh luc',
         'feature': 'Mo dau Bach Ho (Ba Ria - Vung Tau)',
-        'material': 'Polymer',
         'release': '30/08/2006'
     },
     '20.000 dong': {
         'color': 'Xanh lo',
         'feature': 'Chua Cau (Hoi An)',
-        'material': 'Polymer',
         'release': '05/2006'
     },
     '50.000 dong': {
         'color': 'Do tim',
         'feature': 'Nghinh Luong Dinh va Phu Van Lau (Hue)',
-        'material': 'Polymer',
         'release': '17/12/2003'
     },
     '100.000 dong': {
         'color': 'Xanh la cay',
         'feature': 'Van Mieu - Quoc Tu Giam (Ha Noi)',
-        'material': 'Polymer',
         'release': '01/09/2004'
     },
     '200.000 dong': {
         'color': 'Do nau',
         'feature': 'Hon Dinh Huong tren vinh Ha Long',
-        'material': 'Polymer',
         'release': '30/08/2006'
     },
     '500.000 dong': {
         'color': 'Xanh lo sam',
         'feature': 'Nha Chu tich Ho Chi Minh tai lang Sen (Nghe An)',
-        'material': 'Polymer',
         'release': '17/12/2003'
     }
 }
 
-def preprocess_image(img):
-    if img.mode == 'RGBA':
-        img = img.convert('RGB')
-    img = img.resize(target_size)
-    img_array = np.array(img).astype(np.float32) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
-    return img_array
-
 col_left, col_right = st.columns([0.5, 0.5])
 
 with col_left:
-    st.markdown('<div class="section-title">CAMERA</div>', unsafe_allow_html=True)
+    st.markdown("### camera")
     camera_image = st.camera_input("", label_visibility="collapsed")
     
     if camera_image is not None:
         bytes_data = camera_image.getvalue()
         img = Image.open(io.BytesIO(bytes_data))
-        st.image(img, width=250, caption="anh da chup")
+        st.image(img, width=250)
         
-        if st.button("NHAN DIEN"):
-            img_array = preprocess_image(img)
+        if st.button("predict"):
+            # xu ly anh
+            if img.mode == 'RGBA':
+                img = img.convert('RGB')
+            img = img.resize(target_size)
+            img_array = np.array(img).astype(np.float32) / 255.0
+            img_array = np.expand_dims(img_array, axis=0)
+            
+            # du doan
             input_name = input_info.name
             predictions = session.run(None, {input_name: img_array})[0][0]
             
+            # hien thi xac suat
             st.markdown("---")
-            st.markdown('<div class="section-title">XAC SUAT</div>', unsafe_allow_html=True)
             for i, name in enumerate(DISPLAY_NAMES):
                 prob = float(predictions[i])
                 st.progress(prob, text=f"{name}: {prob:.2%}")
             
+            # ket qua
             idx = np.argmax(predictions)
             confidence = float(predictions[idx])
             money_name = DISPLAY_NAMES[idx]
@@ -187,28 +171,25 @@ with col_left:
             <div class="result-box">
                 <h2>{money_name}</h2>
                 <p>do tin cay: {confidence:.2%}</p>
-                <hr>
-                <p><b>mau sac:</b> {money['color']}</p>
-                <p><b>dac diem:</b> {money['feature']}</p>
-                <p><b>chat lieu:</b> {money['material']}</p>
-                <p><b>ngay phat hanh:</b> {money['release']}</p>
+                <p>mau sac: {money['color']}</p>
+                <p>dac diem: {money['feature']}</p>
+                <p>phat hanh: {money['release']}</p>
             </div>
             """, unsafe_allow_html=True)
 
 with col_right:
-    st.markdown('<div class="section-title">THU VIEN TIEN</div>', unsafe_allow_html=True)
+    st.markdown("### danh sach tien")
     
     for name, money in MONEY_INFO.items():
-        with st.expander(f"{name}"):
+        with st.expander(name):
             st.markdown(f"""
             <div class="money-card">
                 <div class="money-title">{name}</div>
-                <div class="money-desc"><b>mau sac:</b> {money['color']}</div>
-                <div class="money-desc"><b>dac diem:</b> {money['feature']}</div>
-                <div class="money-desc"><b>chat lieu:</b> {money['material']}</div>
-                <div class="money-desc"><b>ngay phat hanh:</b> {money['release']}</div>
+                <div class="money-desc">mau sac: {money['color']}</div>
+                <div class="money-desc">dac diem: {money['feature']}</div>
+                <div class="money-desc">phat hanh: {money['release']}</div>
             </div>
             """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("version 1.0 | vietnam money recognition cnn")
+st.caption("version 1.0 | vietnam money recognition")
