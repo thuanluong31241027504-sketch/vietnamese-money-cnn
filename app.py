@@ -1,8 +1,10 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import tensorflow as tf
+import onnxruntime as ort
 import os
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import tensorflow as tf
 
 st.set_page_config(
     page_title="Money Recognition",
@@ -30,23 +32,25 @@ st.markdown("""
 
 st.markdown('<div class="main-title">> vietnamese money recognition<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
 
-MODEL_FILE = "vietnamese_money_model.h5"
+MODEL_FILE = "vietnamese_money.onnx"
 
 @st.cache_resource
 def load_model():
     if os.path.exists(MODEL_FILE):
-        return tf.keras.models.load_model(MODEL_FILE)
+        return ort.InferenceSession(MODEL_FILE)
     return None
 
-model = load_model()
+session = load_model()
 
-if model is None:
-    st.error("> vietnamese_money_model.h5 not found")
+if session is None:
+    st.error("> vietnamese_money.onnx not found")
     st.stop()
 
-input_shape = model.input_shape
+input_info = session.get_inputs()[0]
+input_shape = input_info.shape
 target_size = (input_shape[1], input_shape[2])
 
+# CLASS NAMES
 CLASS_NAMES = ['010000', '020000', '050000', '100000', '200000', '500000']
 
 DISPLAY_NAMES = {
@@ -67,6 +71,29 @@ MONEY_INFO = {
     '500000': {'value': '500.000 dong', 'color': 'Xanh tim', 'feature': 'Hinh anh chu tich Ho Chi Minh, nha tho Kim Lien'}
 }
 
+# HAM XU LY ANH GIONG HET TRAIN
+def preprocess_image(uploaded_file):
+    # Mo anh
+    img = Image.open(uploaded_file)
+    
+    # Chuyen sang RGB neu can
+    if img.mode == 'RGBA':
+        img = img.convert('RGB')
+    
+    # Resize ve dung kich thuoc train (128x128)
+    img = img.resize(target_size)
+    
+    # Chuyen sang array
+    img_array = np.array(img).astype(np.float32)
+    
+    # Rescale giong train (1.0/255)
+    img_array = img_array / 255.0
+    
+    # Them batch dimension
+    img_array = np.expand_dims(img_array, axis=0)
+    
+    return img_array
+
 st.markdown("""
 > nhan dien menh gia tien Viet Nam
 > buoc 1: chup anh to tien
@@ -77,18 +104,17 @@ st.markdown("""
 uploaded = st.file_uploader("", type=['jpg', 'jpeg', 'png'], label_visibility="collapsed")
 
 if uploaded:
-    image = Image.open(uploaded)
-    st.image(image, width=280)
-    
-    if image.mode == 'RGBA':
-        image = image.convert('RGB')
-    
-    image = image.resize(target_size)
-    img_array = np.array(image).astype(np.float32) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
+    # HIEN THI ANH GOC
+    img_original = Image.open(uploaded)
+    st.image(img_original, width=280)
     
     if st.button("> predict"):
-        predictions = model.predict(img_array, verbose=0)[0]
+        # XU LY ANH GIONG HET TRAIN
+        img_array = preprocess_image(uploaded)
+        
+        # DU DOAN
+        input_name = input_info.name
+        predictions = session.run(None, {input_name: img_array})[0][0]
         
         idx = np.argmax(predictions)
         confidence = float(predictions[idx])
@@ -112,6 +138,11 @@ if uploaded:
             prob = float(predictions[idx])
             value = DISPLAY_NAMES[CLASS_NAMES[idx]]
             st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
+        
+        # DEBUG: hien thi xac suat tung class
+        with st.expander("Debug: Chi tiet xac suat"):
+            for i, name in enumerate(CLASS_NAMES):
+                st.write(f"{DISPLAY_NAMES[name]}: {predictions[i]:.4f} ({predictions[i]:.2%})")
 
 st.markdown("---")
 st.caption("> version 1.0 | vietnam money recognition cnn")
