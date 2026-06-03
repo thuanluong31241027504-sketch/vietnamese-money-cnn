@@ -55,61 +55,43 @@ target_size = (input_shape[1], input_shape[2])
 CLASS_NAMES = ['010000', '020000', '050000', '100000', '200000', '500000']
 DISPLAY_NAMES = ['10.000 dong', '20.000 dong', '50.000 dong', '100.000 dong', '200.000 dong', '500.000 dong']
 
-# THONG TIN CHI TIET CHO 6 MENH GIA
+# THONG TIN TIEN CHINH XAC
 MONEY_INFO = {
     '10.000 dong': {
-        'color': 'Nau do',
-        'size': '132 x 60 mm',
+        'color': 'Vang sam tren nen xanh luc',
+        'feature': 'Mo dau Bach Ho (Ba Ria - Vung Tau)',
         'material': 'Polymer',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, gieng Co Loa',
-        'release': '2006',
-        'obverse': 'Chu tich Ho Chi Minh',
-        'reverse': 'Gieng Co Loa'
+        'release': '30/08/2006'
     },
     '20.000 dong': {
-        'color': 'Xanh duong',
-        'size': '136 x 65 mm',
+        'color': 'Xanh lo',
+        'feature': 'Chua Cau (Hoi An)',
         'material': 'Polymer',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, cau The Huc',
-        'release': '2006',
-        'obverse': 'Chu tich Ho Chi Minh',
-        'reverse': 'Cau The Huc'
+        'release': '05/2006'
     },
     '50.000 dong': {
-        'color': 'Hong tim',
-        'size': '140 x 65 mm',
+        'color': 'Do tim',
+        'feature': 'Nghinh Luong Dinh va Phu Van Lau (Hue)',
         'material': 'Polymer',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, Hue',
-        'release': '2003',
-        'obverse': 'Chu tich Ho Chi Minh',
-        'reverse': 'Ngo mon - Hue'
+        'release': '17/12/2003'
     },
     '100.000 dong': {
-        'color': 'Xanh la',
-        'size': '144 x 65 mm',
+        'color': 'Xanh la cay',
+        'feature': 'Van Mieu - Quoc Tu Giam (Ha Noi)',
         'material': 'Polymer',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, Van Mieu',
-        'release': '2004',
-        'obverse': 'Chu tich Ho Chi Minh',
-        'reverse': 'Van Mieu - Quoc Tu Giam'
+        'release': '01/09/2004'
     },
     '200.000 dong': {
         'color': 'Do nau',
-        'size': '148 x 65 mm',
+        'feature': 'Hon Dinh Huong tren vinh Ha Long',
         'material': 'Polymer',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, Ha Long',
-        'release': '2006',
-        'obverse': 'Chu tich Ho Chi Minh',
-        'reverse': 'Vinh Ha Long'
+        'release': '30/08/2006'
     },
     '500.000 dong': {
-        'color': 'Xanh tim',
-        'size': '152 x 65 mm',
+        'color': 'Xanh lo sam',
+        'feature': 'Nha Chu tich Ho Chi Minh tai lang Sen (Nghe An)',
         'material': 'Polymer',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, nha tho Kim Lien',
-        'release': '2003',
-        'obverse': 'Chu tich Ho Chi Minh',
-        'reverse': 'Nha tho Kim Lien'
+        'release': '17/12/2003'
     }
 }
 
@@ -137,7 +119,6 @@ with col_left:
             input_name = input_info.name
             predictions = session.run(None, {input_name: img_array})[0][0]
             
-            # Hien thi xac suat tung class
             st.markdown("---")
             st.markdown("> xac suat tung menh gia")
             for i, name in enumerate(DISPLAY_NAMES):
@@ -155,12 +136,9 @@ with col_left:
                 <p>do tin cay: {confidence:.2%}</p>
                 <hr>
                 <p><b>mau sac:</b> {money['color']}</p>
-                <p><b>kich thuoc:</b> {money['size']}</p>
-                <p><b>chat lieu:</b> {money['material']}</p>
                 <p><b>dac diem:</b> {money['feature']}</p>
-                <p><b>mat truoc:</b> {money['obverse']}</p>
-                <p><b>mat sau:</b> {money['reverse']}</p>
-                <p><b>nam phat hanh:</b> {money['release']}</p>
+                <p><b>chat lieu:</b> {money['material']}</p>
+                <p><b>ngay phat hanh:</b> {money['release']}</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -173,10 +151,9 @@ with col_right:
             <div class="money-card">
                 <div class="money-title">{name}</div>
                 <div class="money-desc"><b>mau sac:</b> {money['color']}</div>
-                <div class="money-desc"><b>kich thuoc:</b> {money['size']}</div>
-                <div class="money-desc"><b>chat lieu:</b> {money['material']}</div>
                 <div class="money-desc"><b>dac diem:</b> {money['feature']}</div>
-                <div class="money-desc"><b>nam phat hanh:</b> {money['release']}</div>
+                <div class="money-desc"><b>chat lieu:</b> {money['material']}</div>
+                <div class="money-desc"><b>ngay phat hanh:</b> {money['release']}</div>
             </div>
             """, unsafe_allow_html=True)
 
