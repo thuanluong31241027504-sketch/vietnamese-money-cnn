@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 from PIL import Image
 import onnxruntime as ort
+import io
 import os
 
 st.set_page_config(
@@ -59,25 +60,14 @@ DISPLAY_NAMES = {
     '500000': '500.000 dong'
 }
 
-def preprocess_image(img_data):
-    """Xu ly anh giong het khi train"""
-    # Mo anh tu bytes
-    img = Image.open(img_data)
-    
-    # Chuyen sang RGB
-    if img.mode == 'RGBA':
-        img = img.convert('RGB')
-    
-    # Resize ve 128x128
-    img = img.resize(target_size)
-    
-    # Chuyen sang array va normalize
-    img_array = np.array(img).astype(np.float32) / 255.0
-    
-    # Them batch dimension
-    img_array = np.expand_dims(img_array, axis=0)
-    
-    return img_array
+MONEY_INFO = {
+    '010000': {'value': '10.000 dong', 'color': 'Nau do', 'feature': 'Hinh anh chu tich Ho Chi Minh, gieng Co Loa'},
+    '020000': {'value': '20.000 dong', 'color': 'Xanh duong', 'feature': 'Hinh anh chu tich Ho Chi Minh, cau The Huc'},
+    '050000': {'value': '50.000 dong', 'color': 'Hong tim', 'feature': 'Hinh anh chu tich Ho Chi Minh, Hue'},
+    '100000': {'value': '100.000 dong', 'color': 'Xanh la', 'feature': 'Hinh anh chu tich Ho Chi Minh, Van Mieu'},
+    '200000': {'value': '200.000 dong', 'color': 'Do nau', 'feature': 'Hinh anh chu tich Ho Chi Minh, Ha Long'},
+    '500000': {'value': '500.000 dong', 'color': 'Xanh tim', 'feature': 'Hinh anh chu tich Ho Chi Minh, nha tho Kim Lien'}
+}
 
 st.markdown("""
 > nhan dien menh gia tien Viet Nam
@@ -88,24 +78,40 @@ st.markdown("""
 
 camera_image = st.camera_input("", label_visibility="collapsed")
 
-if camera_image:
-    st.image(camera_image, width=280)
+if camera_image is not None:
+    # DOC ANH TU CAMERA
+    bytes_data = camera_image.getvalue()
+    img = Image.open(io.BytesIO(bytes_data))
+    
+    # HIEN THI ANH DA CHUP
+    st.image(img, width=280)
     
     if st.button("> predict"):
-        # Xu ly anh giong het train
-        img_array = preprocess_image(camera_image)
+        # XU LY ANH
+        if img.mode == 'RGBA':
+            img = img.convert('RGB')
         
-        # Du doan
+        img = img.resize(target_size)
+        img_array = np.array(img).astype(np.float32) / 255.0
+        img_array = np.expand_dims(img_array, axis=0)
+        
+        # DU DOAN
         input_name = input_info.name
         predictions = session.run(None, {input_name: img_array})[0][0]
         
         idx = np.argmax(predictions)
         confidence = float(predictions[idx])
         money_key = CLASS_NAMES[idx]
+        money = MONEY_INFO[money_key]
         
         st.markdown("---")
-        st.markdown(f"### > {DISPLAY_NAMES[money_key]}")
+        st.markdown(f"### > {money['value']}")
         st.caption(f"do tin cay: {confidence:.2%}")
+        
+        st.markdown("---")
+        st.markdown("> thong tin")
+        st.write(f"mau sac: {money['color']}")
+        st.write(f"dac diem: {money['feature']}")
         
         st.markdown("---")
         st.markdown("> top 5")
@@ -114,6 +120,9 @@ if camera_image:
             prob = float(predictions[idx])
             value = DISPLAY_NAMES[CLASS_NAMES[idx]]
             st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
+        
+        if confidence < 0.6:
+            st.warning("> do tin cay thap, vui long chup lai anh ro hon")
 
 st.markdown("---")
 st.caption("> version 1.0 | vietnam money recognition cnn")
