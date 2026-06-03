@@ -3,8 +3,6 @@ import numpy as np
 from PIL import Image
 import onnxruntime as ort
 import os
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import tensorflow as tf
 
 st.set_page_config(
     page_title="Money Recognition",
@@ -71,25 +69,17 @@ MONEY_INFO = {
     '500000': {'value': '500.000 dong', 'color': 'Xanh tim', 'feature': 'Hinh anh chu tich Ho Chi Minh, nha tho Kim Lien'}
 }
 
-# HAM XU LY ANH GIONG HET TRAIN
+# HAM XU LY ANH (khong dung tensorflow)
 def preprocess_image(uploaded_file):
-    # Mo anh
     img = Image.open(uploaded_file)
     
-    # Chuyen sang RGB neu can
     if img.mode == 'RGBA':
         img = img.convert('RGB')
     
-    # Resize ve dung kich thuoc train (128x128)
     img = img.resize(target_size)
     
-    # Chuyen sang array
     img_array = np.array(img).astype(np.float32)
-    
-    # Rescale giong train (1.0/255)
     img_array = img_array / 255.0
-    
-    # Them batch dimension
     img_array = np.expand_dims(img_array, axis=0)
     
     return img_array
@@ -104,15 +94,12 @@ st.markdown("""
 uploaded = st.file_uploader("", type=['jpg', 'jpeg', 'png'], label_visibility="collapsed")
 
 if uploaded:
-    # HIEN THI ANH GOC
     img_original = Image.open(uploaded)
     st.image(img_original, width=280)
     
     if st.button("> predict"):
-        # XU LY ANH GIONG HET TRAIN
         img_array = preprocess_image(uploaded)
         
-        # DU DOAN
         input_name = input_info.name
         predictions = session.run(None, {input_name: img_array})[0][0]
         
@@ -138,11 +125,6 @@ if uploaded:
             prob = float(predictions[idx])
             value = DISPLAY_NAMES[CLASS_NAMES[idx]]
             st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
-        
-        # DEBUG: hien thi xac suat tung class
-        with st.expander("Debug: Chi tiet xac suat"):
-            for i, name in enumerate(CLASS_NAMES):
-                st.write(f"{DISPLAY_NAMES[name]}: {predictions[i]:.4f} ({predictions[i]:.2%})")
 
 st.markdown("---")
 st.caption("> version 1.0 | vietnam money recognition cnn")
