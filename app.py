@@ -2,7 +2,6 @@ import streamlit as st
 import numpy as np
 from PIL import Image
 import onnxruntime as ort
-import cv2
 import os
 
 st.set_page_config(
@@ -60,20 +59,20 @@ DISPLAY_NAMES = {
     '500000': '500.000 dong'
 }
 
-# HAM XU LY ANH GIONG HET KHI TRAIN
-def preprocess_image(img):
-    # Chuyen sang RGB neu can
+def preprocess_image(img_data):
+    """Xu ly anh giong het khi train"""
+    # Mo anh tu bytes
+    img = Image.open(img_data)
+    
+    # Chuyen sang RGB
     if img.mode == 'RGBA':
         img = img.convert('RGB')
     
-    # Resize ve 128x128 (giong train)
+    # Resize ve 128x128
     img = img.resize(target_size)
     
-    # Chuyen sang numpy array
-    img_array = np.array(img).astype(np.float32)
-    
-    # Rescale 1.0/255 (giong train)
-    img_array = img_array / 255.0
+    # Chuyen sang array va normalize
+    img_array = np.array(img).astype(np.float32) / 255.0
     
     # Them batch dimension
     img_array = np.expand_dims(img_array, axis=0)
@@ -82,20 +81,18 @@ def preprocess_image(img):
 
 st.markdown("""
 > nhan dien menh gia tien Viet Nam
-> buoc 1: chup anh to tien (de trong khung hinh)
+> buoc 1: chup anh to tien
 > buoc 2: nhan nut predict
 > buoc 3: xem ket qua
 """)
 
-# SU DUNG CAMERA TREN DIEN THOAI
 camera_image = st.camera_input("", label_visibility="collapsed")
 
 if camera_image:
-    # Hien thi anh da chup
     st.image(camera_image, width=280)
     
     if st.button("> predict"):
-        # Xu ly anh giong het khi train
+        # Xu ly anh giong het train
         img_array = preprocess_image(camera_image)
         
         # Du doan
@@ -117,9 +114,6 @@ if camera_image:
             prob = float(predictions[idx])
             value = DISPLAY_NAMES[CLASS_NAMES[idx]]
             st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
-        
-        if confidence < 0.6:
-            st.warning("> do tin cay thap, vui long chup lai anh ro hon")
 
 st.markdown("---")
 st.caption("> version 1.0 | vietnam money recognition cnn")
