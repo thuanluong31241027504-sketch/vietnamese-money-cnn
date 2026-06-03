@@ -4,149 +4,31 @@ from PIL import Image
 import onnxruntime as ort
 import os
 
-st.set_page_config(
-    page_title="Money Recognition",
-    page_icon="",
-    layout="wide"
-)
+st.set_page_config(layout="wide")
+st.title("Test thứ tự class")
 
-st.markdown("""
-<style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    .stApp {
-        background-color: #ffffff;
-    }
-    
-    * {
-        font-family: 'Courier New', 'SF Mono', monospace;
-    }
-    
-    @keyframes blink {
-        0%, 50% { opacity: 1; }
-        51%, 100% { opacity: 0; }
-    }
-    
-    .blinking-cursor {
-        animation: blink 1s step-end infinite;
-        display: inline-block;
-        width: 10px;
-    }
-    
-    .main-title {
-        color: #ff69b4;
-        font-size: 2rem;
-        margin-bottom: 1rem;
-        font-weight: normal;
-    }
-    
-    .stButton > button {
-        background: transparent;
-        color: #ff69b4 !important;
-        border: 1px solid #ff69b4 !important;
-        border-radius: 0px !important;
-        font-family: 'Courier New', monospace !important;
-        width: 100% !important;
-    }
-    
-    .stButton > button:hover {
-        background: #ff69b420 !important;
-    }
-    
-    .stProgress > div > div > div {
-        background-color: #ff69b4;
-    }
-    
-    .stCaption {
-        color: #ff69b4;
-    }
-    
-    hr {
-        border-color: #ff69b450;
-    }
-    
-    .result-box {
-        border: 1px solid #ff69b4;
-        padding: 20px;
-        margin-top: 20px;
-        background-color: #ffffff;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown('<div class="main-title">> vietnamese money recognition<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
-
-MODEL_FILE = "vietnamese_money.onnx"
-
-@st.cache_resource
-def load_model():
-    if os.path.exists(MODEL_FILE):
-        return ort.InferenceSession(MODEL_FILE)
-    return None
-
-session = load_model()
-
-if session is None:
-    st.error("> vietnamese_money.onnx not found")
-    st.stop()
-
+session = ort.InferenceSession("vietnamese_money.onnx")
 input_info = session.get_inputs()[0]
-input_shape = input_info.shape
-target_size = (input_shape[1], input_shape[2])
-num_classes = session.get_outputs()[0].shape[1]
+target_size = (input_info.shape[1], input_info.shape[2])
 
-# THU TU CLASS THEO ALPHABET (A-Z)
-# Dataset: 1000, 10000, 2000, 20000, 5000, 50000
-CLASS_NAMES = ['1000', '10000', '2000', '20000', '5000', '50000']
-
-# Thong tin chi tiet tung menh gia
-MONEY_INFO = {
-    '1000': {
-        'value': '1.000 dong',
-        'color': 'Xam nau',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, hoa sen'
-    },
-    '10000': {
-        'value': '10.000 dong',
-        'color': 'Nau do',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, gieng Co Loa'
-    },
-    '2000': {
-        'value': '2.000 dong',
-        'color': 'Xam xanh',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, nha Rong'
-    },
-    '20000': {
-        'value': '20.000 dong',
-        'color': 'Xanh duong',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, cau The Huc'
-    },
-    '5000': {
-        'value': '5.000 dong',
-        'color': 'Xanh lam',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, cang Hai Phong'
-    },
-    '50000': {
-        'value': '50.000 dong',
-        'color': 'Hong tim',
-        'feature': 'Hinh anh chu tich Ho Chi Minh, Hue'
-    }
+# Các cách sắp xếp class để thử
+class_options = {
+    "Cach 1": ['1000', '10000', '2000', '20000', '5000', '50000'],
+    "Cach 2": ['1000', '2000', '5000', '10000', '20000', '50000'],
+    "Cach 3": ['1000', '2000', '10000', '20000', '5000', '50000'],
+    "Cach 4": ['1000', '5000', '10000', '20000', '2000', '50000'],
 }
 
-st.markdown("""
-> nhan dien cac menh gia tien Viet Nam
-> buoc 1: chup anh to tien
-> buoc 2: nhan nut predict
-> buoc 3: xem ket qua
-""")
+selected = st.selectbox("Chon cach sap xep class", list(class_options.keys()))
+CLASS_NAMES = class_options[selected]
 
-uploaded = st.file_uploader("", type=['jpg', 'jpeg', 'png'], label_visibility="collapsed")
+st.write(f"Dang dung: {CLASS_NAMES}")
+
+uploaded = st.file_uploader("Chon anh tien", type=['jpg', 'png'])
 
 if uploaded:
     image = Image.open(uploaded)
-    st.image(image, width=280)
+    st.image(image, width=200)
     
     if image.mode == 'RGBA':
         image = image.convert('RGB')
@@ -155,32 +37,12 @@ if uploaded:
     img_array = np.array(image).astype(np.float32) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
     
-    if st.button("> predict"):
-        input_name = input_info.name
-        predictions = session.run(None, {input_name: img_array})[0][0]
+    if st.button("Predict"):
+        pred = session.run(None, {input_info.name: img_array})[0][0]
+        idx = np.argmax(pred)
         
-        idx = np.argmax(predictions)
-        confidence = float(predictions[idx])
-        money_key = CLASS_NAMES[idx]
-        money = MONEY_INFO[money_key]
+        st.write("### Chi tiet tung class:")
+        for i, name in enumerate(CLASS_NAMES):
+            st.progress(float(pred[i]), text=f"{name}: {pred[i]:.2%}")
         
-        st.markdown("---")
-        st.markdown(f"### > {money['value']}")
-        st.caption(f"confidence: {confidence:.2%}")
-        
-        st.markdown("---")
-        st.markdown("> thong tin")
-        st.write(f"menh gia: {money['value']}")
-        st.write(f"mau sac: {money['color']}")
-        st.write(f"dac diem: {money['feature']}")
-        
-        st.markdown("---")
-        st.markdown("> top 5")
-        top5_idx = np.argsort(predictions)[-5:][::-1]
-        for i, idx in enumerate(top5_idx, 1):
-            prob = float(predictions[idx])
-            value = MONEY_INFO[CLASS_NAMES[idx]]['value']
-            st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
-
-st.markdown("---")
-st.caption("> version 1.0 | vietnam money recognition cnn")
+        st.success(f"### Du doan: {CLASS_NAMES[idx]}")
