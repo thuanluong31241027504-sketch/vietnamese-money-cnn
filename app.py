@@ -20,19 +20,73 @@ st.markdown("""
     * {font-family: 'Courier New', monospace;}
     @keyframes blink {0%,50%{opacity:1}51%,100%{opacity:0}}
     .blinking-cursor {animation: blink 1s step-end infinite; display: inline-block; width: 10px;}
-    .main-title {color: #8B4513; font-size: 2rem; margin-bottom: 1rem; text-align: center;}
-    .stButton > button {background: #8B4513 !important; color: #fffbe6 !important; border: none !important; border-radius: 0px !important; width: 100% !important;}
-    .stButton > button:hover {background: #A0522D !important;}
-    .stProgress > div > div > div {background-color: #8B4513;}
-    hr {border-color: #8B4513; opacity: 0.3;}
-    .result-box {border: 2px solid #8B4513; padding: 20px; margin-top: 20px; background-color: #fff8e7; text-align: center;}
-    .money-card {border: 1px solid #8B4513; padding: 12px; margin-bottom: 10px; background-color: #fff8e7;}
-    .money-title {color: #8B4513; font-size: 1rem; font-weight: bold;}
-    .money-desc {color: #333; font-size: 0.7rem; line-height: 1.5;}
+    .main-title {
+        color: #8B4513;
+        font-size: 3.5rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        text-align: center;
+        letter-spacing: 2px;
+    }
+    .stButton > button {
+        background: #8B4513 !important;
+        color: #fffbe6 !important;
+        border: none !important;
+        border-radius: 0px !important;
+        width: 100% !important;
+        padding: 0.75rem !important;
+        font-size: 1.1rem !important;
+    }
+    .stButton > button:hover {
+        background: #A0522D !important;
+    }
+    .stProgress > div > div > div {
+        background-color: #8B4513;
+    }
+    hr {
+        border-color: #8B4513;
+        opacity: 0.3;
+        margin: 20px 0;
+    }
+    .result-box {
+        border: 2px solid #8B4513;
+        padding: 20px;
+        margin-top: 20px;
+        background-color: #fff8e7;
+        text-align: center;
+    }
+    .result-box h2 {
+        color: #8B4513;
+        font-size: 1.8rem;
+        margin: 0;
+    }
+    .money-card {
+        border: 1px solid #8B4513;
+        padding: 12px;
+        margin-bottom: 10px;
+        background-color: #fff8e7;
+    }
+    .money-card .money-title {
+        color: #8B4513;
+        font-size: 1rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .money-card .money-desc {
+        color: #333;
+        font-size: 0.7rem;
+        line-height: 1.5;
+    }
+    .section-title {
+        color: #8B4513;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="main-title">> vietnamese money recognition<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">VIETNAMESE MONEY RECOGNITION<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
 
 MODEL_FILE = "vietnamese_money.onnx"
 
@@ -45,7 +99,7 @@ def load_model():
 session = load_model()
 
 if session is None:
-    st.error("> vietnamese_money.onnx not found")
+    st.error("vietnamese_money.onnx not found")
     st.stop()
 
 input_info = session.get_inputs()[0]
@@ -55,7 +109,6 @@ target_size = (input_shape[1], input_shape[2])
 CLASS_NAMES = ['010000', '020000', '050000', '100000', '200000', '500000']
 DISPLAY_NAMES = ['10.000 dong', '20.000 dong', '50.000 dong', '100.000 dong', '200.000 dong', '500.000 dong']
 
-# THONG TIN TIEN CHINH XAC
 MONEY_INFO = {
     '10.000 dong': {
         'color': 'Vang sam tren nen xanh luc',
@@ -106,7 +159,7 @@ def preprocess_image(img):
 col_left, col_right = st.columns([0.5, 0.5])
 
 with col_left:
-    st.markdown("### > camera")
+    st.markdown('<div class="section-title">CAMERA</div>', unsafe_allow_html=True)
     camera_image = st.camera_input("", label_visibility="collapsed")
     
     if camera_image is not None:
@@ -114,13 +167,13 @@ with col_left:
         img = Image.open(io.BytesIO(bytes_data))
         st.image(img, width=250, caption="anh da chup")
         
-        if st.button("> predict"):
+        if st.button("NHAN DIEN"):
             img_array = preprocess_image(img)
             input_name = input_info.name
             predictions = session.run(None, {input_name: img_array})[0][0]
             
             st.markdown("---")
-            st.markdown("> xac suat tung menh gia")
+            st.markdown('<div class="section-title">XAC SUAT</div>', unsafe_allow_html=True)
             for i, name in enumerate(DISPLAY_NAMES):
                 prob = float(predictions[i])
                 st.progress(prob, text=f"{name}: {prob:.2%}")
@@ -132,7 +185,7 @@ with col_left:
             
             st.markdown(f"""
             <div class="result-box">
-                <h2 style="color:#8B4513;">{money_name}</h2>
+                <h2>{money_name}</h2>
                 <p>do tin cay: {confidence:.2%}</p>
                 <hr>
                 <p><b>mau sac:</b> {money['color']}</p>
@@ -143,10 +196,10 @@ with col_left:
             """, unsafe_allow_html=True)
 
 with col_right:
-    st.markdown("### > thu vien tien")
+    st.markdown('<div class="section-title">THU VIEN TIEN</div>', unsafe_allow_html=True)
     
     for name, money in MONEY_INFO.items():
-        with st.expander(f"> {name}"):
+        with st.expander(f"{name}"):
             st.markdown(f"""
             <div class="money-card">
                 <div class="money-title">{name}</div>
@@ -158,4 +211,4 @@ with col_right:
             """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("> version 1.0 | vietnam money recognition cnn")
+st.caption("version 1.0 | vietnam money recognition cnn")
