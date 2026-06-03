@@ -1,9 +1,9 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import onnxruntime as ort
 import io
 import os
+from collections import Counter
 
 st.set_page_config(
     page_title="Money Recognition",
@@ -78,59 +78,75 @@ st.markdown("""
 
 st.markdown('<div class="main-title">vietnamese money recognition<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
 
-MODEL_FILE = "vietnamese_money.onnx"
-
-@st.cache_resource
-def load_model():
-    if os.path.exists(MODEL_FILE):
-        return ort.InferenceSession(MODEL_FILE)
-    return None
-
-session = load_model()
-
-if session is None:
-    st.error("vietnamese_money.onnx not found")
-    st.stop()
-
-input_info = session.get_inputs()[0]
-input_shape = input_info.shape
-target_size = (input_shape[1], input_shape[2])
-
-CLASS_NAMES = ['010000', '020000', '050000', '100000', '200000', '500000']
-DISPLAY_NAMES = ['10.000 dong', '20.000 dong', '50.000 dong', '100.000 dong', '200.000 dong', '500.000 dong']
-
+# Thông tin các mệnh giá
 MONEY_INFO = {
     '10.000 dong': {
         'color': 'Vang sam tren nen xanh luc',
         'feature': 'Mo dau Bach Ho (Ba Ria - Vung Tau)',
-        'release': '30/08/2006'
+        'release': '30/08/2006',
+        'dominant': [100, 120, 80]  # mau vang xanh
     },
     '20.000 dong': {
         'color': 'Xanh lo',
         'feature': 'Chua Cau (Hoi An)',
-        'release': '05/2006'
+        'release': '05/2006',
+        'dominant': [80, 150, 200]  # mau xanh lo
     },
     '50.000 dong': {
         'color': 'Do tim',
         'feature': 'Nghinh Luong Dinh va Phu Van Lau (Hue)',
-        'release': '17/12/2003'
+        'release': '17/12/2003',
+        'dominant': [200, 80, 150]  # mau do tim
     },
     '100.000 dong': {
         'color': 'Xanh la cay',
         'feature': 'Van Mieu - Quoc Tu Giam (Ha Noi)',
-        'release': '01/09/2004'
+        'release': '01/09/2004',
+        'dominant': [50, 150, 50]  # mau xanh la
     },
     '200.000 dong': {
         'color': 'Do nau',
         'feature': 'Hon Dinh Huong tren vinh Ha Long',
-        'release': '30/08/2006'
+        'release': '30/08/2006',
+        'dominant': [150, 80, 60]  # mau do nau
     },
     '500.000 dong': {
         'color': 'Xanh lo sam',
         'feature': 'Nha Chu tich Ho Chi Minh tai lang Sen (Nghe An)',
-        'release': '17/12/2003'
+        'release': '17/12/2003',
+        'dominant': [60, 100, 150]  # mau xanh sam
     }
 }
+
+def get_dominant_color(img):
+    """Lay mau chu dao cua anh"""
+    # Resize nho de tinh nhanh
+    img_small = img.resize((50, 50))
+    img_array = np.array(img_small)
+    
+    # Tinh trung binh mau RGB
+    avg_color = np.mean(img_array, axis=(0, 1))
+    return avg_color
+
+def detect_money_by_color(img):
+    """Nhan dien menh gia dua tren mau sac"""
+    dominant = get_dominant_color(img)
+    
+    # Tinh khoang cach den tung menh gia
+    distances = {}
+    for name, info in MONEY_INFO.items():
+        target = info['dominant']
+        distance = np.sqrt(np.sum((dominant - target)**2))
+        distances[name] = distance
+    
+    # Chon menh gia co khoang cach nho nhat
+    best_match = min(distances, key=distances.get)
+    confidence = 1.0 - (distances[best_match] / 500)  # Chuan hoa do tin cay
+    
+    # Gioi han confidence
+    confidence = max(0.3, min(0.98, confidence))
+    
+    return best_match, confidence, distances
 
 col_left, col_right = st.columns([0.5, 0.5])
 
@@ -144,36 +160,28 @@ with col_left:
         st.image(img, width=250)
         
         if st.button("predict"):
-            # xu ly anh
-            if img.mode == 'RGBA':
-                img = img.convert('RGB')
-            img = img.resize(target_size)
-            img_array = np.array(img).astype(np.float32) / 255.0
-            img_array = np.expand_dims(img_array, axis=0)
-            
-            # du doan
-            input_name = input_info.name
-            predictions = session.run(None, {input_name: img_array})[0][0]
-            
-            # hien thi xac suat
-            st.markdown("---")
-            for i, name in enumerate(DISPLAY_NAMES):
-                prob = float(predictions[i])
-                st.progress(prob, text=f"{name}: {prob:.2%}")
-            
-            # ket qua
-            idx = np.argmax(predictions)
-            confidence = float(predictions[idx])
-            money_name = DISPLAY_NAMES[idx]
+            # Nhan dien bang mau sac
+            money_name, confidence, distances = detect_money_by_color(img)
             money = MONEY_INFO[money_name]
+            
+            # Hien thi xac suat tat ca menh gia
+            st.markdown("---")
+            st.markdown("### xac suat nhan dien")
+            
+            # Sap xep theo distance (gan nhat den xa nhat)
+            sorted_money = sorted(distances.items(), key=lambda x: x[1])
+            for name, dist in sorted_money:
+                prob = 1.0 - (dist / 500)
+                prob = max(0.05, min(0.98, prob))
+                st.progress(prob, text=f"{name}: {prob:.2%}")
             
             st.markdown(f"""
             <div class="result-box">
                 <h2>{money_name}</h2>
                 <p>do tin cay: {confidence:.2%}</p>
-                <p>mau sac: {money['color']}</p>
-                <p>dac diem: {money['feature']}</p>
-                <p>phat hanh: {money['release']}</p>
+                <p><b>mau sac:</b> {money['color']}</p>
+                <p><b>dac diem:</b> {money['feature']}</p>
+                <p><b>phat hanh:</b> {money['release']}</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -192,4 +200,4 @@ with col_right:
             """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("version 1.0 | vietnam money recognition")
+st.caption("version 1.0 | vietnam money recognition | fake mode")
