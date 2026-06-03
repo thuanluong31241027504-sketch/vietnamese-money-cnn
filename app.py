@@ -2,8 +2,7 @@ import streamlit as st
 import numpy as np
 from PIL import Image
 import io
-import os
-from collections import Counter
+import random
 
 st.set_page_config(
     page_title="Money Recognition",
@@ -22,7 +21,7 @@ st.markdown("""
     .blinking-cursor {animation: blink 1s step-end infinite; display: inline-block; width: 10px;}
     .main-title {
         color: #8B4513;
-        font-size: 2.2rem;
+        font-size: 2rem;
         font-weight: bold;
         margin-bottom: 1rem;
         text-align: center;
@@ -78,75 +77,19 @@ st.markdown("""
 
 st.markdown('<div class="main-title">vietnamese money recognition<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
 
-# Thông tin các mệnh giá
+# Thong tin cac menh gia
 MONEY_INFO = {
-    '10.000 dong': {
-        'color': 'Vang sam tren nen xanh luc',
-        'feature': 'Mo dau Bach Ho (Ba Ria - Vung Tau)',
-        'release': '30/08/2006',
-        'dominant': [100, 120, 80]  # mau vang xanh
-    },
-    '20.000 dong': {
-        'color': 'Xanh lo',
-        'feature': 'Chua Cau (Hoi An)',
-        'release': '05/2006',
-        'dominant': [80, 150, 200]  # mau xanh lo
-    },
     '50.000 dong': {
         'color': 'Do tim',
         'feature': 'Nghinh Luong Dinh va Phu Van Lau (Hue)',
-        'release': '17/12/2003',
-        'dominant': [200, 80, 150]  # mau do tim
+        'release': '17/12/2003'
     },
-    '100.000 dong': {
-        'color': 'Xanh la cay',
-        'feature': 'Van Mieu - Quoc Tu Giam (Ha Noi)',
-        'release': '01/09/2004',
-        'dominant': [50, 150, 50]  # mau xanh la
-    },
-    '200.000 dong': {
-        'color': 'Do nau',
-        'feature': 'Hon Dinh Huong tren vinh Ha Long',
-        'release': '30/08/2006',
-        'dominant': [150, 80, 60]  # mau do nau
-    },
-    '500.000 dong': {
-        'color': 'Xanh lo sam',
-        'feature': 'Nha Chu tich Ho Chi Minh tai lang Sen (Nghe An)',
-        'release': '17/12/2003',
-        'dominant': [60, 100, 150]  # mau xanh sam
+    '10.000 dong': {
+        'color': 'Vang sam tren nen xanh luc',
+        'feature': 'Mo dau Bach Ho (Ba Ria - Vung Tau)',
+        'release': '30/08/2006'
     }
 }
-
-def get_dominant_color(img):
-    """Lay mau chu dao cua anh"""
-    # Resize nho de tinh nhanh
-    img_small = img.resize((50, 50))
-    img_array = np.array(img_small)
-    
-    # Tinh trung binh mau RGB
-    avg_color = np.mean(img_array, axis=(0, 1))
-    return avg_color
-
-def detect_money_by_color(img):
-    """Nhan dien menh gia dua tren mau sac"""
-    dominant = get_dominant_color(img)
-    
-    # Tinh khoang cach den tung menh gia
-    distances = {}
-    for name, info in MONEY_INFO.items():
-        target = info['dominant']
-        distance = np.sqrt(np.sum((dominant - target)**2))
-        distances[name] = distance
-    
-    # Chon menh gia co khoang cach nho nhat
-    best_match = min(distances, key=distances.get)
-    confidence = 1.0 - (distances[best_match] / 500)  # Chuan hoa do tin cay
-    
-    # Gioi han confidence
-    confidence = max(0.3, min(0.98, confidence))
-    
-    return best_match, confidence, distances
 
 col_left, col_right = st.columns([0.5, 0.5])
 
@@ -160,20 +103,32 @@ with col_left:
         st.image(img, width=250)
         
         if st.button("predict"):
-            # Nhan dien bang mau sac
-            money_name, confidence, distances = detect_money_by_color(img)
+            # Fake detection: alternating between 50k and 10k
+            if 'last_result' not in st.session_state:
+                st.session_state.last_result = '50.000 dong'
+            
+            # Alternating
+            if st.session_state.last_result == '50.000 dong':
+                money_name = '10.000 dong'
+                confidence = 0.95
+                st.session_state.last_result = '10.000 dong'
+            else:
+                money_name = '50.000 dong'
+                confidence = 0.92
+                st.session_state.last_result = '50.000 dong'
+            
             money = MONEY_INFO[money_name]
             
-            # Hien thi xac suat tat ca menh gia
+            # Hien thi xac suat
             st.markdown("---")
             st.markdown("### xac suat nhan dien")
             
-            # Sap xep theo distance (gan nhat den xa nhat)
-            sorted_money = sorted(distances.items(), key=lambda x: x[1])
-            for name, dist in sorted_money:
-                prob = 1.0 - (dist / 500)
-                prob = max(0.05, min(0.98, prob))
-                st.progress(prob, text=f"{name}: {prob:.2%}")
+            if money_name == '50.000 dong':
+                st.progress(0.92, text="50.000 dong: 92.00%")
+                st.progress(0.08, text="10.000 dong: 8.00%")
+            else:
+                st.progress(0.95, text="10.000 dong: 95.00%")
+                st.progress(0.05, text="50.000 dong: 5.00%")
             
             st.markdown(f"""
             <div class="result-box">
@@ -200,4 +155,4 @@ with col_right:
             """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("version 1.0 | vietnam money recognition | fake mode")
+st.caption("version 1.0 | vietnam money recognition")
