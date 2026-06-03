@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import onnxruntime as ort
+import tensorflow as tf
 import os
 
 st.set_page_config(
@@ -30,37 +30,24 @@ st.markdown("""
 
 st.markdown('<div class="main-title">> vietnamese money recognition<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
 
-MODEL_FILE = "vietnamese_money.onnx"
+MODEL_FILE = "vietnamese_money_model.h5"
 
 @st.cache_resource
 def load_model():
     if os.path.exists(MODEL_FILE):
-        return ort.InferenceSession(MODEL_FILE)
+        return tf.keras.models.load_model(MODEL_FILE)
     return None
 
-session = load_model()
+model = load_model()
 
-if session is None:
-    st.error("> vietnamese_money.onnx not found")
+if model is None:
+    st.error("> vietnamese_money_model.h5 not found")
     st.stop()
 
-input_info = session.get_inputs()[0]
-input_shape = input_info.shape
+input_shape = model.input_shape
 target_size = (input_shape[1], input_shape[2])
 
-# THU TU CLASS DUNG (alphabet tu dataset)
 CLASS_NAMES = ['010000', '020000', '050000', '100000', '200000', '500000']
-
-# EP MAPPING CO DINH - map truc tiep output index sang class index
-# Vi dataset sap xep alphabet, output cung theo thu tu do
-MAPPING = {
-    0: 0,   # output 0 -> 010000
-    1: 1,   # output 1 -> 020000
-    2: 2,   # output 2 -> 050000
-    3: 3,   # output 3 -> 100000
-    4: 4,   # output 4 -> 200000
-    5: 5    # output 5 -> 500000
-}
 
 DISPLAY_NAMES = {
     '010000': '10.000 dong',
@@ -101,17 +88,11 @@ if uploaded:
     img_array = np.expand_dims(img_array, axis=0)
     
     if st.button("> predict"):
-        input_name = input_info.name
-        predictions = session.run(None, {input_name: img_array})[0][0]
+        predictions = model.predict(img_array, verbose=0)[0]
         
-        # Lay output index tu ONNX
-        onnx_idx = np.argmax(predictions)
-        confidence = float(predictions[onnx_idx])
-        
-        # EP: map sang class index dung
-        correct_idx = MAPPING[onnx_idx]
-        
-        money_key = CLASS_NAMES[correct_idx]
+        idx = np.argmax(predictions)
+        confidence = float(predictions[idx])
+        money_key = CLASS_NAMES[idx]
         money = MONEY_INFO[money_key]
         
         st.markdown("---")
@@ -129,8 +110,7 @@ if uploaded:
         top5_idx = np.argsort(predictions)[-5:][::-1]
         for i, idx in enumerate(top5_idx, 1):
             prob = float(predictions[idx])
-            mapped_idx = MAPPING[idx]
-            value = DISPLAY_NAMES[CLASS_NAMES[mapped_idx]]
+            value = DISPLAY_NAMES[CLASS_NAMES[idx]]
             st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
 
 st.markdown("---")
