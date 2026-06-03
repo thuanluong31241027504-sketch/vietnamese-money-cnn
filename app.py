@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 from PIL import Image
 import onnxruntime as ort
+import cv2
 import os
 
 st.set_page_config(
@@ -48,7 +49,6 @@ input_info = session.get_inputs()[0]
 input_shape = input_info.shape
 target_size = (input_shape[1], input_shape[2])
 
-# CLASS NAMES
 CLASS_NAMES = ['010000', '020000', '050000', '100000', '200000', '500000']
 
 DISPLAY_NAMES = {
@@ -60,63 +60,55 @@ DISPLAY_NAMES = {
     '500000': '500.000 dong'
 }
 
-MONEY_INFO = {
-    '010000': {'value': '10.000 dong', 'color': 'Nau do', 'feature': 'Hinh anh chu tich Ho Chi Minh, gieng Co Loa'},
-    '020000': {'value': '20.000 dong', 'color': 'Xanh duong', 'feature': 'Hinh anh chu tich Ho Chi Minh, cau The Huc'},
-    '050000': {'value': '50.000 dong', 'color': 'Hong tim', 'feature': 'Hinh anh chu tich Ho Chi Minh, Hue'},
-    '100000': {'value': '100.000 dong', 'color': 'Xanh la', 'feature': 'Hinh anh chu tich Ho Chi Minh, Van Mieu'},
-    '200000': {'value': '200.000 dong', 'color': 'Do nau', 'feature': 'Hinh anh chu tich Ho Chi Minh, Ha Long'},
-    '500000': {'value': '500.000 dong', 'color': 'Xanh tim', 'feature': 'Hinh anh chu tich Ho Chi Minh, nha tho Kim Lien'}
-}
-
-# HAM XU LY ANH (khong dung tensorflow)
-def preprocess_image(uploaded_file):
-    img = Image.open(uploaded_file)
-    
+# HAM XU LY ANH GIONG HET KHI TRAIN
+def preprocess_image(img):
+    # Chuyen sang RGB neu can
     if img.mode == 'RGBA':
         img = img.convert('RGB')
     
+    # Resize ve 128x128 (giong train)
     img = img.resize(target_size)
     
+    # Chuyen sang numpy array
     img_array = np.array(img).astype(np.float32)
+    
+    # Rescale 1.0/255 (giong train)
     img_array = img_array / 255.0
+    
+    # Them batch dimension
     img_array = np.expand_dims(img_array, axis=0)
     
     return img_array
 
 st.markdown("""
 > nhan dien menh gia tien Viet Nam
-> buoc 1: chup anh to tien
+> buoc 1: chup anh to tien (de trong khung hinh)
 > buoc 2: nhan nut predict
 > buoc 3: xem ket qua
 """)
 
-uploaded = st.file_uploader("", type=['jpg', 'jpeg', 'png'], label_visibility="collapsed")
+# SU DUNG CAMERA TREN DIEN THOAI
+camera_image = st.camera_input("", label_visibility="collapsed")
 
-if uploaded:
-    img_original = Image.open(uploaded)
-    st.image(img_original, width=280)
+if camera_image:
+    # Hien thi anh da chup
+    st.image(camera_image, width=280)
     
     if st.button("> predict"):
-        img_array = preprocess_image(uploaded)
+        # Xu ly anh giong het khi train
+        img_array = preprocess_image(camera_image)
         
+        # Du doan
         input_name = input_info.name
         predictions = session.run(None, {input_name: img_array})[0][0]
         
         idx = np.argmax(predictions)
         confidence = float(predictions[idx])
         money_key = CLASS_NAMES[idx]
-        money = MONEY_INFO[money_key]
         
         st.markdown("---")
-        st.markdown(f"### > {money['value']}")
-        st.caption(f"confidence: {confidence:.2%}")
-        
-        st.markdown("---")
-        st.markdown("> thong tin")
-        st.write(f"menh gia: {money['value']}")
-        st.write(f"mau sac: {money['color']}")
-        st.write(f"dac diem: {money['feature']}")
+        st.markdown(f"### > {DISPLAY_NAMES[money_key]}")
+        st.caption(f"do tin cay: {confidence:.2%}")
         
         st.markdown("---")
         st.markdown("> top 5")
@@ -125,6 +117,9 @@ if uploaded:
             prob = float(predictions[idx])
             value = DISPLAY_NAMES[CLASS_NAMES[idx]]
             st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
+        
+        if confidence < 0.6:
+            st.warning("> do tin cay thap, vui long chup lai anh ro hon")
 
 st.markdown("---")
 st.caption("> version 1.0 | vietnam money recognition cnn")
