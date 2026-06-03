@@ -53,24 +53,20 @@ CLASS_NAMES = ['daisy', 'dandelion', 'rose', 'sunflower', 'tulip']
 
 st.markdown("""
 > huong dan:
-> 1. chup anh hoa (de trong khung hinh)
+> 1. chup anh hoa
 > 2. nhan nut predict
 > 3. xem ket qua
 """)
 
-# CAMERA CHUP ANH TRUC TIEP
 camera_image = st.camera_input("", label_visibility="collapsed")
 
 if camera_image is not None:
-    # DOC ANH TU CAMERA
     bytes_data = camera_image.getvalue()
     img = Image.open(io.BytesIO(bytes_data))
     
-    # HIEN THI ANH DA CHUP
     st.image(img, width=250)
     
     if st.button("> predict"):
-        # XU LY ANH GIONG HET KHI TRAIN
         if img.mode == 'RGBA':
             img = img.convert('RGB')
         
@@ -78,7 +74,6 @@ if camera_image is not None:
         img_array = np.array(img).astype(np.float32) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
         
-        # DU DOAN
         input_name = input_info.name
         predictions = session.run(None, {input_name: img_array})[0][0]
         
@@ -91,7 +86,7 @@ if camera_image is not None:
         st.caption(f"do tin cay: {confidence:.2%}")
         
         st.markdown("---")
-        st.markdown("> top 3 du doan")
+        st.markdown("> top 3")
         top3_idx = np.argsort(predictions)[-3:][::-1]
         for i, idx in enumerate(top3_idx, 1):
             prob = float(predictions[idx])
