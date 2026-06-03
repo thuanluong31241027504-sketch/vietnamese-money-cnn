@@ -3,7 +3,6 @@ import numpy as np
 from PIL import Image
 import io
 import os
-import random
 
 st.set_page_config(
     page_title="Money Recognition",
@@ -165,7 +164,7 @@ with col_left:
             predictions = session.run(None, {input_info.name: img_array})[0][0]
             
             st.markdown("---")
-            st.markdown("> xac suat tung menh gia")
+            st.markdown("xac suat tung menh gia")
             for i, name in enumerate(DISPLAY_NAMES):
                 prob = float(predictions[i])
                 st.progress(prob, text=f"{name}: {prob:.2%}")
@@ -190,7 +189,7 @@ with col_right:
     st.markdown("### thu vien tien")
     
     for name, money in MONEY_INFO.items():
-        with st.expander(f"> {name}"):
+        with st.expander(name):
             st.markdown(f"""
             <div class="money-card">
                 <div class="money-title">{name}</div>
