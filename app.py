@@ -15,57 +15,16 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    .stApp {
-        background-color: #ffffff;
-    }
-    
-    * {
-        font-family: 'Courier New', 'SF Mono', monospace;
-    }
-    
-    @keyframes blink {
-        0%, 50% { opacity: 1; }
-        51%, 100% { opacity: 0; }
-    }
-    
-    .blinking-cursor {
-        animation: blink 1s step-end infinite;
-        display: inline-block;
-        width: 10px;
-    }
-    
-    .main-title {
-        color: #ff69b4;
-        font-size: 2rem;
-        margin-bottom: 1rem;
-        font-weight: normal;
-    }
-    
-    .stButton > button {
-        background: transparent;
-        color: #ff69b4 !important;
-        border: 1px solid #ff69b4 !important;
-        border-radius: 0px !important;
-        font-family: 'Courier New', monospace !important;
-        width: 100% !important;
-    }
-    
-    .stButton > button:hover {
-        background: #ff69b420 !important;
-    }
-    
-    .stProgress > div > div > div {
-        background-color: #ff69b4;
-    }
-    
-    .stCaption {
-        color: #ff69b4;
-    }
-    
-    hr {
-        border-color: #ff69b450;
-    }
+    .stApp {background-color: #ffffff;}
+    * {font-family: 'Courier New', 'SF Mono', monospace;}
+    @keyframes blink {0%,50%{opacity:1}51%,100%{opacity:0}}
+    .blinking-cursor {animation: blink 1s step-end infinite; display: inline-block; width: 10px;}
+    .main-title {color: #ff69b4; font-size: 2rem; margin-bottom: 1rem; font-weight: normal;}
+    .stButton > button {background: transparent; color: #ff69b4 !important; border: 1px solid #ff69b4 !important; border-radius: 0px !important; width: 100% !important;}
+    .stButton > button:hover {background: #ff69b420 !important;}
+    .stProgress > div > div > div {background-color: #ff69b4;}
+    .stCaption {color: #ff69b4;}
+    hr {border-color: #ff69b450;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -89,10 +48,20 @@ input_info = session.get_inputs()[0]
 input_shape = input_info.shape
 target_size = (input_shape[1], input_shape[2])
 
-# THU TU CLASS DUNG TU CODE TRAIN (alphabet)
+# THU TU CLASS DUNG (alphabet tu dataset)
 CLASS_NAMES = ['010000', '020000', '050000', '100000', '200000', '500000']
 
-# Hien thi dep
+# EP MAPPING CO DINH - map truc tiep output index sang class index
+# Vi dataset sap xep alphabet, output cung theo thu tu do
+MAPPING = {
+    0: 0,   # output 0 -> 010000
+    1: 1,   # output 1 -> 020000
+    2: 2,   # output 2 -> 050000
+    3: 3,   # output 3 -> 100000
+    4: 4,   # output 4 -> 200000
+    5: 5    # output 5 -> 500000
+}
+
 DISPLAY_NAMES = {
     '010000': '10.000 dong',
     '020000': '20.000 dong',
@@ -135,9 +104,14 @@ if uploaded:
         input_name = input_info.name
         predictions = session.run(None, {input_name: img_array})[0][0]
         
-        idx = np.argmax(predictions)
-        confidence = float(predictions[idx])
-        money_key = CLASS_NAMES[idx]
+        # Lay output index tu ONNX
+        onnx_idx = np.argmax(predictions)
+        confidence = float(predictions[onnx_idx])
+        
+        # EP: map sang class index dung
+        correct_idx = MAPPING[onnx_idx]
+        
+        money_key = CLASS_NAMES[correct_idx]
         money = MONEY_INFO[money_key]
         
         st.markdown("---")
@@ -155,7 +129,8 @@ if uploaded:
         top5_idx = np.argsort(predictions)[-5:][::-1]
         for i, idx in enumerate(top5_idx, 1):
             prob = float(predictions[idx])
-            value = DISPLAY_NAMES[CLASS_NAMES[idx]]
+            mapped_idx = MAPPING[idx]
+            value = DISPLAY_NAMES[CLASS_NAMES[mapped_idx]]
             st.progress(prob, text=f"{i}. {value} - {prob:.2%}")
 
 st.markdown("---")
