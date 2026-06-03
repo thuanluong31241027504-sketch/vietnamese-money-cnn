@@ -66,6 +66,13 @@ st.markdown("""
     hr {
         border-color: #ff69b450;
     }
+    
+    .result-box {
+        border: 1px solid #ff69b4;
+        padding: 20px;
+        margin-top: 20px;
+        background-color: #ffffff;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -90,21 +97,46 @@ input_shape = input_info.shape
 target_size = (input_shape[1], input_shape[2])
 num_classes = session.get_outputs()[0].shape[1]
 
-# Danh sach menh gia (cap nhat theo model cua ban)
-CLASS_NAMES = ['1000', '2000', '5000', '10000', '20000', '50000']
+# THU TU CLASS THEO ALPHABET (A-Z)
+# Dataset: 1000, 10000, 2000, 20000, 5000, 50000
+CLASS_NAMES = ['1000', '10000', '2000', '20000', '5000', '50000']
 
-# Thong tin chi tiet
+# Thong tin chi tiet tung menh gia
 MONEY_INFO = {
-    '1000': {'value': '1.000 dong', 'color': 'Xam nau', 'feature': 'Hinh anh chu tich Ho Chi Minh, hoa sen'},
-    '2000': {'value': '2.000 dong', 'color': 'Xam xanh', 'feature': 'Hinh anh chu tich Ho Chi Minh, nha Rong'},
-    '5000': {'value': '5.000 dong', 'color': 'Xanh lam', 'feature': 'Hinh anh chu tich Ho Chi Minh, cang Hai Phong'},
-    '10000': {'value': '10.000 dong', 'color': 'Nau do', 'feature': 'Hinh anh chu tich Ho Chi Minh, gieng Co Loa'},
-    '20000': {'value': '20.000 dong', 'color': 'Xanh duong', 'feature': 'Hinh anh chu tich Ho Chi Minh, cau The Huc'},
-    '50000': {'value': '50.000 dong', 'color': 'Hong tim', 'feature': 'Hinh anh chu tich Ho Chi Minh, Hue'}
+    '1000': {
+        'value': '1.000 dong',
+        'color': 'Xam nau',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, hoa sen'
+    },
+    '10000': {
+        'value': '10.000 dong',
+        'color': 'Nau do',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, gieng Co Loa'
+    },
+    '2000': {
+        'value': '2.000 dong',
+        'color': 'Xam xanh',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, nha Rong'
+    },
+    '20000': {
+        'value': '20.000 dong',
+        'color': 'Xanh duong',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, cau The Huc'
+    },
+    '5000': {
+        'value': '5.000 dong',
+        'color': 'Xanh lam',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, cang Hai Phong'
+    },
+    '50000': {
+        'value': '50.000 dong',
+        'color': 'Hong tim',
+        'feature': 'Hinh anh chu tich Ho Chi Minh, Hue'
+    }
 }
 
 st.markdown("""
-> nhan dien menh gia tien Viet Nam
+> nhan dien cac menh gia tien Viet Nam
 > buoc 1: chup anh to tien
 > buoc 2: nhan nut predict
 > buoc 3: xem ket qua
